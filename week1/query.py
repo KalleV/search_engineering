@@ -40,7 +40,7 @@ def get_opensearch(the_host="localhost"):
 
 
 # Hardcoded query here.  Better to use search templates or other query config.
-def create_query(user_query, filters=None, sort="_score", sortDir="desc", size=10, source=None):
+def create_query(user_query, filters=None, sort="_score", sortDir="desc", size=10, source=None, search_template=None):
     query_obj = {
         'size': size,
         "sort": [
@@ -80,9 +80,17 @@ def create_query(user_query, filters=None, sort="_score", sortDir="desc", size=1
                                     "type": "phrase",
                                     "slop": "6",
                                     "minimum_should_match": "2<75%",
-                                    "fields": ["name^10", "name.hyphens^10", "shortDescription^5",
-                                               "longDescription^5", "department^0.5", "sku", "manufacturer", "features",
-                                               "categoryPath"]
+                                    "fields": [
+                                        "name^10", 
+                                        "name.hyphens^10", 
+                                        "shortDescription^5",
+                                        "longDescription^5", 
+                                        "department^0.5", 
+                                        "sku", 
+                                        "manufacturer", 
+                                        "features",
+                                        "categoryPath"
+                                    ]
                                 }
                             },
                             {
@@ -158,6 +166,24 @@ def create_query(user_query, filters=None, sort="_score", sortDir="desc", size=1
             }
         }
     }
+
+    if search_template:
+        # Load the search template from file
+        with open(search_template, 'r') as file:
+            json_string = file.read()
+
+        # Define the dynamic values
+        user_query = 'user_query'
+
+        # Replace the placeholders with actual values
+        json_string = json_string.replace('user_query', user_query)
+
+        # Convert the string back to JSON
+        template = json.loads(json_string)
+
+        # Merge the search template with the query object
+        query_obj.update(template)
+
     if user_query == "*" or user_query == "#":
         # replace the bool
         try:
@@ -169,8 +195,8 @@ def create_query(user_query, filters=None, sort="_score", sortDir="desc", size=1
     return query_obj
 
 
-def search(client, user_query, index="bbuy_products"):
-    query_obj = create_query(user_query)
+def search(client, user_query, index="bbuy_products", search_template=None, source=None):
+    query_obj = create_query(user_query, search_template=search_template, source=source)
     logging.info(query_obj)
     start = perf_counter()
     response = client.search(query_obj, index=index)
@@ -187,7 +213,8 @@ def search(client, user_query, index="bbuy_products"):
 @click.option('--index_name', '-i', default="bbuy_products", help="The name of the index to write to")
 @click.option('--host', '-o', default="localhost", help="The name of the host running OpenSearch")
 @click.option('--max_queries', '-m', default=500, help="The maximum number of queries to run.  Set to -1 to run all.")
-def main(query_file: str, index_name: str, host: str, max_queries: int):
+@click.option('--search_template', '-s', default=None, help="The path to a search template file to use")
+def main(query_file: str, index_name: str, host: str, max_queries: int, search_template: str):
     logger.info(f"Loading query file from {query_file}")
     query_df = pd.read_csv(query_file, parse_dates=['click_time', 'query_time'])
     queries = query_df["query"][0:max_queries]
@@ -198,7 +225,7 @@ def main(query_file: str, index_name: str, host: str, max_queries: int):
     logger.info(f"Running queries, checking in every {modulo} queries:")
     for query in queries:
         i+= 1
-        hits = search(client, query, index_name)
+        hits = search(client, query, index_name, search_template)
         if i % modulo == 0 and hits is not None:
             logger.info(f"Query: {query} has {len(hits)} hits.")
 

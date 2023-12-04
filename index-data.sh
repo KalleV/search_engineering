@@ -5,13 +5,13 @@ usage()
   exit 2
 }
 
-DATASETS_DIR="/workspace/datasets"
-PYTHON_LOC="/workspace/search_engineering"
-WEEK="utilities" #Default indexing is in utilities
-PRODUCTS_JSON_FILE="bbuy_products.json"
+DATASETS_DIR="./datasets"
+PYTHON_LOC="./"
+WEEK="week1"
+PRODUCTS_JSON_FILE="~/forks/search_engineering/week1/bbuy_products.json"
 HOST="localhost"
 INDEX_NAME="bbuy_products"
-LOGS_DIR="/workspace/logs"
+LOGS_DIR="./logs"
 WORKERS=8
 MAX_DOCS=2000000
 BATCH_SIZE=200
@@ -36,7 +36,9 @@ do
 done
 shift $((OPTIND -1))
 
-mkdir $LOGS_DIR
+if [ ! -d "$LOGS_DIR" ]; then
+  mkdir "$LOGS_DIR"
+fi
 
 cd $PYTHON_LOC || exit
 cd $WEEK || exit
