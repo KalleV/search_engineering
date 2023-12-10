@@ -206,6 +206,11 @@ def main(source_dir: str, file_glob: str, index_name: str, workers: int, host: s
     logger.info(
         f"Indexing {source_dir} to {index_name} with {workers} workers, refresh_interval of {refresh_interval} to host {host} with a maximum number of docs sent per file per worker of {max_docs} and {batch_size} per batch.")
     files = glob.glob(source_dir + "/" + file_glob)
+
+    if len(files) == 0:
+        logger.error(f"No files found in {source_dir} with glob {file_glob}")
+        return
+
     docs_indexed = 0
 
     client = get_opensearch(host)
@@ -221,6 +226,8 @@ def main(source_dir: str, file_glob: str, index_name: str, workers: int, host: s
     )
 
     logger.debug(client.indices.get_settings(index=index_name))
+    logger.debug(f"Found {len(files)} files to index")
+    
     start = perf_counter()
     time_indexing = 0
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
